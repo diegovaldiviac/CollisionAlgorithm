@@ -91,12 +91,110 @@ class DE1SoCfpga {
     close (fd); // close memory
   } // end destructor
 
+
+  void RegisterWrite(unsigned int reg_offset, int value) {
+    * (volatile unsigned int *)(pBase + reg_offset) = value;
+  }
+
+  int RegisterRead(unsigned int reg_offset) {
+    return * (volatile unsigned int *)(pBase + reg_offset);
+  }
+
+  void write_pixel(int x, int y, short color) {
+
+    if (x < 0 || x >= 320) return;
+    if (y < 0 || y >= 240) return;
+
+    * (volatile unsigned int *)(pBase_Pixel + (y<<10) + (x<<1)) = color ;
+  }
+
+  /* use write_pixel to set entire screen to black (does not clear the character buffer) */
+  void clear_screen() {
+    int x, y;
+    for (x = 0; x < 320; x++) {
+      for (y = 0; y < 240; y++) {
+        write_pixel(x, y, 0);
+      }
+    }
+  }
+
+  void video_box(float x, float y, float width, float height, float angle, short pixel_color) {
+
+    int pixel_ptr, row, col;
+    float h, a, b;
+
+    // Vector to draw
+    float vec_x, vec_y;
+    vec_x = cos(angle*PI/ 180.0) / 2;
+    vec_y = sin(angle*PI / 180.0) /2;
+
+    // Perp Vector to draw
+    float pvc_x, pvc_y;
+    pvc_x = -vec_y;
+    pvc_y = vec_x;
+
+    a = x - ((width) * vec_x) - ((height) * pvc_x);
+    b = y - ((width) * vec_y) - ((height) * pvc_y);
+    //cout << a << ", " << b << endl;
+
+    if (angle > 90 || angle < -90) {
+      a += width * 2 * vec_x + height * 2 * pvc_x;
+      b += width * 2 * vec_y + height * 2 * pvc_y;
+      vec_x *= -1;
+      vec_y *= -1;
+      pvc_x *= -1;
+      pvc_y *= -1;
+    }
+
+    /* assume that the box coordinates are valid */
+    for (float i = 0; i < width * 2; i++) {
+      for (float j = 0; j < height * 2; j++) {
+
+        col = round(a + (i * vec_x) + (j * pvc_x));
+        row = round(b + (i * vec_y) + (j * pvc_y));
+        write_pixel(col, row, pixel_color);
+      }
+    }
+  }
+
+
+  void video_t(float x, float y, float width, float height, float angle, short pixel_color) {
+
+    int pixel_ptr, row, col;
+    float h, a, b;
+
+    // Vector to draw
+    float vec_x, vec_y;
+    vec_x = cos(angle*PI/ 180.0) / 2;
+    vec_y = sin(angle*PI / 180.0) / 2;
+
+    // Perp Vector to draw
+    float pvc_x, pvc_y, diag_x, diag_y;
+    pvc_x = -vec_y;
+    pvc_y = vec_x;
+
+    h = sqrt((height*height) + ((width)*(width)));
+    a = x - ((width) * vec_x) - ((height) * pvc_x);
+    b = y - ((width) * vec_y) - ((height) * pvc_y);
+
+    float xx = a + ((width)*vec_x) + (height*2*pvc_x);
+    float yy = b + ((width)*vec_y) + (height*2*pvc_y);
+
+    diag_x = (xx-a)/h;
+    diag_y = (yy-b)/h;
+
+    for (float i = 0; i <= width * 2; i++) {
+      for (float j = 0; j <= height*2; j++) {
+        col = round(a + (i*vec_x) - (j * diag_x/2));
+        row = round(b + (i*vec_y) - (j * diag_y/2));
+
+        if (j <= i) {
+          write_pixel(col, row, pixel_color);
+        }
+      }
+    }
+  }
 }
-
-
-
-
-
 
 
 
